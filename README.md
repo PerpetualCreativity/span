@@ -2,6 +2,18 @@
 
 Span is a static-site generator based on Pandoc. It generates a static site from a folder of markdown sources. You can also easily generate a RSS feed or other non-HTML generated files using Span.
 
+
+## Installation
+
+Currently, the only way to install this is using `cabal`:
+
+```
+git clone https://github.com/PerpetualCreativity/span.git
+cabal install --overwrite-policy=always
+```
+
+And make sure to have `~/.cabal/bin` in your path.
+
 ## Behavior
 
 ### Directory layout
