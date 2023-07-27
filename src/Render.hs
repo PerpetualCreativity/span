@@ -11,6 +11,9 @@ import qualified Data.Text.IO
 import Text.Pandoc
 import Text.Pandoc.Lua (getEngine)
 import Text.Pandoc.Filter
+import Text.Pandoc.Readers (Reader(..))
+import Text.Pandoc.Format (FlavoredFormat (..), ExtensionsDiff (..))
+import Text.Pandoc.Extensions (Extensions, emptyExtensions)
 import System.Directory
 import System.FilePath
 import System.Exit (die)
@@ -58,6 +61,7 @@ data RenderInfo = RenderInfo {
   filepath :: FilePath,
   context :: Object,
   eitherFilters :: Either String [Filter],
+  fileType :: String
 }
 
 renderFile :: RenderInfo -> IO Text
@@ -69,16 +73,27 @@ renderFile i = do
   template <- contentMap i Map.! templatePath
   file <- Data.Text.IO.readFile contentPath
 
-  let exts = getDefaultExtensions "markdown"
   let exec x = runIO x >>= handleError
+
+  (genReader, exts) <- exec $ getReader FlavoredFormat {
+    formatName = Data.Text.pack $ fileType i,
+    formatExtsDiff = ExtensionsDiff {
+      extsToEnable = emptyExtensions,
+      extsToDisable = emptyExtensions
+    }
+  }
+
+  reader <- (case genReader of
+        TextReader r -> return r
+        ByteStringReader r -> die "Span currently doesn't support ByteStringReaders. Please create an issue if you want to use this Pandoc feature.")
 
   filters <- case eitherFilters i of
     Left m -> die m
     Right fs -> return fs
   scrngin <- exec getEngine
 
-  md <- exec $ readMarkdown (def {readerExtensions=exts}) file
   let vars = toContext $ Object (context i)
 
+  md <- exec $ reader (def {readerExtensions=exts}) file
   filtered <- exec $ applyFilters scrngin def filters [] md
   exec $ writeHtml5String (def {writerTemplate=Just template, writerVariables=vars}) md

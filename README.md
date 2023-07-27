@@ -130,6 +130,18 @@ variables:
     - message: Very cool news!
       date: 1970-01-02
 
+# Span, by default, treats files with the `.md` extension as markdown, and
+# files with the `.html` extension as html. If you want to add recognition
+# for more extensions, fill this out.
+# These strings are the recognized input names:
+# https://hackage.haskell.org/package/pandoc-3.1.6/docs/src/Text.Pandoc.Readers.html#readers
+extensions:
+  md: markdown
+  html: html
+  # you can leave the above two out if you're just using the default values.
+  xml: html # useful for RSS feeds
+  typ: typst
+
 # Run filters against files in contents/ that match these globs.
 # Relative paths to filters are relative to the directory span is run in.
 filters:

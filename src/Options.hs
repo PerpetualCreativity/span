@@ -11,6 +11,7 @@ module Options (
   getFilters,
   getOpts,
   Opts(..),
+  extensionMap,
 ) where
 
 import Render (Filter (..))
@@ -29,12 +30,15 @@ import System.Exit (die)
 import qualified Data.Bifunctor
 import Data.Char (toLower)
 import Data.Vector (fromList)
+import qualified Data.Map.Strict as Map
+import Data.Map.Strict (mapKeys)
 
 data Config = Config { globals :: Maybe Object
                      , variables :: Maybe (KeyMap (KeyMap [Value]))
                      , ignore :: Maybe [String]
                      , passthrough :: Maybe [String]
                      , filters :: Maybe (KeyMap [KeyMap FilePath])
+                     , extensions :: Maybe (KeyMap String)
               } deriving (Generic, Show)
 instance FromJSON Config
 
@@ -53,6 +57,10 @@ skipGlobs config = filter $ not . matchGlobs ((fromMaybe [] $ ignore config) ++ 
 
 passthroughGlobs :: Config -> [FilePath] -> [FilePath]
 passthroughGlobs config = filter $ matchGlobs $ fromMaybe [] $ passthrough config
+
+extensionMap :: Config -> Map.Map String String
+extensionMap config =
+  mapKeys unpack (maybe Map.empty toMapText (extensions config)) `Map.union` Map.fromList [("md", "markdown"), ("html", "html")]
 
 matchGlob :: FilePath -> String -> Bool
 matchGlob fp s = match (compile s) fp

@@ -12,6 +12,8 @@ import System.Exit (die)
 import Control.Monad
 import System.Directory
 import System.FilePath
+import Data.Map.Strict ((!?))
+import Data.Maybe (fromMaybe)
 
 main :: IO ()
 main = do
@@ -28,12 +30,15 @@ main = do
   unless (defaultName `elem` templates) $ die "The templates folder must contain, at least, a default.html file."
 
   let ct = compileTemplates templates
+  let em = extensionMap config
+
   let renderInfo c = RenderInfo {
     contentMap = ct,
     templates = templates,
     filepath = c,
     context = vars config c,
-    eitherFilters = getFilters config c
+    eitherFilters = getFilters config c,
+    fileType = fromMaybe "markdown" $ em !? tail (takeExtension c)
   }
   let createDir fp = createDirectoryIfMissing True $ takeDirectory fp
   let createAndWrite fp text = createDir fp >> Data.Text.IO.writeFile fp text
