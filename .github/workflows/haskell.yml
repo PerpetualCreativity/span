@@ -1,0 +1,69 @@
+name: Haskell (x86 builds)
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  create-pre-release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Create pre-release draft
+      if: "startsWith(github.event.release.tag_name, 'v')"
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.TOKEN }}
+      run: gh release create ${{ github.event.release.tag_name }} --draft --prerelease --title "span ${{ github.event.release.tag_name }}" --notes "Built at $(date -u)"
+  build:
+    strategy:
+      matrix:
+        include:
+        - name: linux
+          os: ubuntu-latest
+          ext: ""
+        - name: macos
+          os: macos-latest
+          ext: ""
+        - name: windows
+          os: windows-latest
+          ext: ".exe"
+    name: x86_64 build
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Cache ~/.cabal/packages, ~/.cabal/store and dist-newstyle
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cabal/packages
+          ~/.cabal/store
+          dist-newstyle
+        key: ${{ runner.os }}-x86_64-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+        restore-keys: ${{ runner.os }}-x86_64-
+    - name: Checkout repo
+      uses: actions/checkout@v3
+    - name: Build span
+      shell: bash
+      run: |
+        ghcup install ghc 9.6.2
+        ghcup set ghc 9.6.2
+        ghcup install cabal 3.10.1.0
+        ghcup set cabal 3.10.1.0
+        cabal update
+        export BUILD_IN_DIR=span-${{ matrix.os }}-intel
+        cabal install --installdir=$BUILD_IN_DIR --install-method=copy --overwrite-policy=always
+        mv $BUILD_IN_DIR/span${{ matrix.ext }} ./span-x86_64-${{ matrix.os }}${{ matrix.ext }}
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: span-x86_64-${{ matrix.name }}${{ matrix.ext }}
+        path: span-x86_64-${{ matrix.os }}${{ matrix.ext }}
+    - name: Add to release
+      if: "startsWith(github.event.release.tag_name, 'v')"
+      shell: bash
+      run: gh release upload ${{ github.event.release.tag_name }} span-x86_64-${{ matrix.os }}
+      env:
+        GITHUB_TOKEN: ${{ github.TOKEN }}
