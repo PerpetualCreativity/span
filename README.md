@@ -87,12 +87,18 @@ If you want to use a partial in your templates, put them in the same directory a
 
 ## Configuration
 
-The config file is by default `span.yml` (you can specify another name, see the command-line options below):
+The config file is by default `span.yml` (you can specify another name through the command-line options):
 
 ```yml
 # Ignore files in contents/ that match these glob expressions.
 ignore:
 - drafts/**
+
+# Pass-through (just copy, don't run pandoc) on files in contents/ that
+# match these glob expressions.
+passthrough:
+- games/**
+- experiments/**
 
 # Passed to every template.
 globals:

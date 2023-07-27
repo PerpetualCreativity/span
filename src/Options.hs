@@ -1,8 +1,15 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# HLINT ignore "Move brackets to avoid $" #-}
 
-module Options (readConfig, vars, ignoreGlobs, matchGlobs, getFilters) where
+module Options (
+  readConfig,
+  vars,
+  skipGlobs,
+  passthroughGlobs,
+  getFilters,
+) where
 
 import Render (Filter (..))
 
@@ -24,6 +31,7 @@ import Data.Vector (fromList)
 data Config = Config { globals :: Maybe Object
                      , variables :: Maybe (KeyMap (KeyMap [Value]))
                      , ignore :: Maybe [String]
+                     , passthrough :: Maybe [String]
                      , filters :: Maybe (KeyMap [KeyMap FilePath])
               } deriving (Generic, Show)
 instance FromJSON Config
@@ -38,8 +46,11 @@ readConfig = getOpts >>= \x -> decodeFileWithWarnings (configFile x) >>= parseHa
     parseHandle i (Right (warns, _)) | not i = die $ "Received the following warnings while parsing the config file:\n" ++
       foldl (\acc s -> acc ++ show s ++ "\n") "" warns
 
-ignoreGlobs :: Config -> [FilePath] -> [FilePath]
-ignoreGlobs config = filter (not . matchGlobs (fromMaybe [] $ ignore config))
+skipGlobs :: Config -> [FilePath] -> [FilePath]
+skipGlobs config = filter $ not . matchGlobs ((fromMaybe [] $ ignore config) ++ (fromMaybe [] $ passthrough config))
+
+passthroughGlobs :: Config -> [FilePath] -> [FilePath]
+passthroughGlobs config = filter $ matchGlobs $ fromMaybe [] $ passthrough config
 
 matchGlob :: FilePath -> String -> Bool
 matchGlob fp s = match (compile s) fp
