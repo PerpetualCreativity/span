@@ -9,6 +9,8 @@ module Options (
   skipGlobs,
   passthroughGlobs,
   getFilters,
+  getOpts,
+  Opts(..),
 ) where
 
 import Render (Filter (..))
@@ -36,8 +38,8 @@ data Config = Config { globals :: Maybe Object
               } deriving (Generic, Show)
 instance FromJSON Config
 
-readConfig :: IO Config
-readConfig = getOpts >>= \x -> decodeFileWithWarnings (configFile x) >>= parseHandle (ignoreConfigWarnings x)
+readConfig :: String -> Bool -> IO Config
+readConfig file ignoreWarnings = decodeFileWithWarnings file >>= parseHandle ignoreWarnings
   where
     parseHandle :: Bool -> Either ParseException ([Warning], Maybe Config) -> IO Config
     parseHandle _ (Left parseE) = die $ prettyPrintParseException parseE
@@ -83,6 +85,7 @@ getFilters config fp = mapM toFilter $ Data.Aeson.KeyMap.foldrWithKey (\key val 
 
 data Opts = Opts { ignoreConfigWarnings :: Bool
                  , configFile :: String
+                 , outputDirName :: String
                  } deriving (Show)
 
 getOpts :: IO Opts
@@ -92,12 +95,19 @@ getOpts = execParser $ info
                  ( long "ignore-config-warnings"
                 <> short 'i'
                 <> help "Whether to ignore warnings while parsing the config")
-            <*> option auto
+            <*> strOption
                  ( long "config"
                 <> value "span.yml"
                 <> showDefault
                 <> metavar "CONFIG_FILE"
                 <> help "The configuration file to use")
+            <*> strOption
+                 ( long "output"
+                <> short 'o'
+                <> value "output"
+                <> showDefault
+                <> metavar "OUTPUT_DIR"
+                <> help "Name of directory to output to")
             <**> helper)
              ( fullDesc
             <> progDesc "Generate a static site from Pandoc Markdown and DocTemplates"

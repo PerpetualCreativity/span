@@ -15,7 +15,9 @@ import System.FilePath
 
 main :: IO ()
 main = do
-  config <- readConfig
+  opts <- getOpts
+
+  config <- readConfig (configFile opts) (ignoreConfigWarnings opts)
 
   passthrough <- passthroughGlobs config . map removeEnclosingFolder <$> walkDir "contents"
 
@@ -32,5 +34,7 @@ main = do
   let createAndWrite fp text = createDir fp >> Data.Text.IO.writeFile fp text
   let createAndCopy infp outfp = createDir outfp >> copyFile infp outfp
 
-  mapM_ (\c -> render c >>= createAndWrite ("output" </> c -<.> "html")) contents
-  mapM_ (\p -> createAndCopy ("contents" </> p) ("output" </> p)) passthrough
+  let outputDir = outputDirName opts
+
+  mapM_ (\c -> render c >>= createAndWrite (outputDir </> c -<.> "html")) contents
+  mapM_ (\p -> createAndCopy ("contents" </> p) (outputDir </> p)) passthrough
