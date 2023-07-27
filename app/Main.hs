@@ -28,13 +28,18 @@ main = do
   unless (defaultName `elem` templates) $ die "The templates folder must contain, at least, a default.html file."
 
   let ct = compileTemplates templates
-
-  let render c = renderFile ct templates c (vars config c) (getFilters config c)
+  let renderInfo c = RenderInfo {
+    contentMap = ct,
+    templates = templates,
+    filepath = c,
+    context = vars config c,
+    eitherFilters = getFilters config c
+  }
   let createDir fp = createDirectoryIfMissing True $ takeDirectory fp
   let createAndWrite fp text = createDir fp >> Data.Text.IO.writeFile fp text
   let createAndCopy infp outfp = createDir outfp >> copyFile infp outfp
 
   let outputDir = outputDirName opts
 
-  mapM_ (\c -> render c >>= createAndWrite (outputDir </> c -<.> "html")) contents
+  mapM_ (\c -> renderFile (renderInfo c) >>= createAndWrite (outputDir </> c -<.> "html")) contents
   mapM_ (\p -> createAndCopy ("contents" </> p) (outputDir </> p)) passthrough

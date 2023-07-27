@@ -1,9 +1,8 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# HLINT ignore "Redundant return" #-}
-{-# LANGUAGE LambdaCase #-}
 
-module Render (renderFile, compileTemplates, walkDir, removeEnclosingFolder, defaultName, Filter (..)) where
+module Render (renderFile, compileTemplates, walkDir, removeEnclosingFolder, defaultName, Filter (..), RenderInfo (..)) where
 
 import Text.DocTemplates
 import Data.Text (Text, unpack)
@@ -53,22 +52,33 @@ checkTemplateCompilation :: String -> FilePath -> Either String (Template a) -> 
 checkTemplateCompilation t fp (Left e) = die $ "Error from Pandoc while compiling " ++ t ++ " " ++ fp ++ "):\n" ++ e
 checkTemplateCompilation _ _ (Right t) = return t
 
-renderFile :: Map FilePath (IO (Template Text)) -> [FilePath] -> FilePath -> Object -> Either String [Filter] -> IO Text
-renderFile cmap templs fp ctxt eitherFilters = do
-  let templatePath = recSearch templs fp
+data RenderInfo = RenderInfo {
+  contentMap :: Map FilePath (IO (Template Text)),
+  templates :: [FilePath],
+  filepath :: FilePath,
+  context :: Object,
+  eitherFilters :: Either String [Filter],
+}
+
+renderFile :: RenderInfo -> IO Text
+renderFile i = do
+  let fp = filepath i
+  let templatePath = recSearch (templates i) fp
   let contentPath = "contents" </> fp
   putStrLn $ "Rendering " ++ contentPath ++ " with template " ++ ("templates" </> templatePath) ++ "."
-  template <- cmap Map.! templatePath
-  file <- Data.Text.IO.readFile $ "contents" </> fp
+  template <- contentMap i Map.! templatePath
+  file <- Data.Text.IO.readFile contentPath
 
   let exts = getDefaultExtensions "markdown"
   let exec x = runIO x >>= handleError
 
-  filters <- case eitherFilters of
+  filters <- case eitherFilters i of
     Left m -> die m
     Right fs -> return fs
   scrngin <- exec getEngine
 
   md <- exec $ readMarkdown (def {readerExtensions=exts}) file
+  let vars = toContext $ Object (context i)
+
   filtered <- exec $ applyFilters scrngin def filters [] md
-  exec $ writeHtml5String (def {writerTemplate=Just template, writerVariables=toContext $ Object ctxt}) md
+  exec $ writeHtml5String (def {writerTemplate=Just template, writerVariables=vars}) md
