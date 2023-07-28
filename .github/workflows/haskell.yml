@@ -47,6 +47,9 @@ jobs:
     - name: Generate plan
       shell: bash
       run: cabal build --dry-run
+    - name: debug
+      shell: bash
+      run: echo ${{ steps.setup.outputs.cabal-store }}
     - name: Restore cache
       uses: actions/cache/restore@v3
       id: cache
