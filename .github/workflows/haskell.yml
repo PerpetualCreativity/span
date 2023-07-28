@@ -20,6 +20,7 @@ jobs:
       run: gh release create ${{ github.event.release.tag_name }} --draft --prerelease --title "span ${{ github.event.release.tag_name }}" --notes "Built at $(date -u)"
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
         - name: linux
@@ -34,27 +35,40 @@ jobs:
     name: x86_64 build
     runs-on: ${{ matrix.os }}
     steps:
-    - name: Cache ~/.cabal/packages, ~/.cabal/store and dist-newstyle
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cabal/packages
-          ~/.cabal/store
-          dist-newstyle
-        key: ${{ runner.os }}-x86_64-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
-        restore-keys: ${{ runner.os }}-x86_64-
     - name: Checkout repo
       uses: actions/checkout@v3
+    - name: Set up GHC ${{ matrix.ghc-version }}
+      uses: haskell/actions/setup@v2
+      id: setup
+      with:
+        ghc-version: 9.6.2
+        cabal-version: 'latest'
+        cabal-update: true
+    - name: Generate plan
+      shell: bash
+      run: cabal build --dry-run
+    - name: Restore cache
+      uses: actions/cache/restore@v3
+      id: cache
+      with:
+        path: ${{ steps.setup.outputs.cabal-store }}
+        key: ${{ runner.os }}-x86_64-${{ hashFiles('**/plan.json') }}
+        restore-keys: ${{ runner.os }}-x86_64-
+    - name: Build dependencies
+      shell: bash
+      run: cabal build --only-dependencies
+    - name: Save cached dependencies
+      uses: actions/cache/save@v3
+      if: ${{ steps.cache.outputs.cache-primary-key != steps.cache.outputs.cache-matched-key }}
+      with:
+        path: ${{ steps.setup.outputs.cabal-store }}
+        key: ${{ steps.cache.outputs.cache-primary-key }}
     - name: Build span
       shell: bash
       run: |
-        ghcup install ghc 9.6.2
-        ghcup set ghc 9.6.2
-        ghcup install cabal 3.10.1.0
-        ghcup set cabal 3.10.1.0
-        cabal update
         export BUILD_IN_DIR=span-${{ matrix.os }}-intel
         cabal install --installdir=$BUILD_IN_DIR --install-method=copy --overwrite-policy=always
+        strip $BUILD_IN_DIR/span${{ matrix.ext }}
         mv $BUILD_IN_DIR/span${{ matrix.ext }} ./span-x86_64-${{ matrix.os }}${{ matrix.ext }}
     - name: Upload artifact
       uses: actions/upload-artifact@v3
