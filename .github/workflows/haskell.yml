@@ -37,24 +37,20 @@ jobs:
     steps:
     - name: Checkout repo
       uses: actions/checkout@v3
-    - name: Set up GHC ${{ matrix.ghc-version }}
-      uses: haskell/actions/setup@v2
-      id: setup
-      with:
-        ghc-version: 9.6.2
-        cabal-version: 'latest'
-        cabal-update: true
+    - name: Set up GHC and Cabal
+      shell: bash
+      run: |
+        ghcup install ghc --set 9.6.2
+        ghcup install cabal --set 3.10.1.0
+        cabal update
     - name: Generate plan
       shell: bash
       run: cabal build --dry-run
-    - name: debug
-      shell: bash
-      run: echo ${{ steps.setup.outputs.cabal-store }}
     - name: Restore cache
       uses: actions/cache/restore@v3
       id: cache
       with:
-        path: ${{ steps.setup.outputs.cabal-store }}
+        path: ~/.cabal/store
         key: ${{ runner.os }}-x86_64-${{ hashFiles('**/plan.json') }}
         restore-keys: ${{ runner.os }}-x86_64-
     - name: Build dependencies
@@ -64,7 +60,7 @@ jobs:
       uses: actions/cache/save@v3
       if: ${{ steps.cache.outputs.cache-primary-key != steps.cache.outputs.cache-matched-key }}
       with:
-        path: ${{ steps.setup.outputs.cabal-store }}
+        path: ~/.cabal/store
         key: ${{ steps.cache.outputs.cache-primary-key }}
     - name: Build span
       shell: bash
