@@ -92,8 +92,18 @@ renderFile i = do
     Right fs -> return fs
   scrngin <- exec getEngine
 
+  -- We employ a workaround so that people can use Text.DocTemplates syntax
+  -- in their content files.
+
   let vars = toContext $ Object (context i)
 
-  md <- exec $ reader (def {readerExtensions=exts}) file
-  filtered <- exec $ applyFilters scrngin def filters [] md
-  exec $ writeHtml5String (def {writerTemplate=Just template, writerVariables=vars}) md
+  let file1 = Data.Text.replace "%" "$" $ Data.Text.replace "$" "\US" file
+  md1 <- exec $ reader (def {readerExtensions=exts}) file
+  t1 <- compileTemplate ("contents" </> fp) file1 >>= checkTemplateCompilation "file" fp
+  r1 <- exec $ writeMarkdown (def {writerTemplate=Just t1, writerVariables=vars}) md1
+
+  let file2 = Data.Text.replace "\US" "$" r1
+
+  md2 <- exec $ reader (def {readerExtensions=exts}) file2
+  filtered <- exec $ applyFilters scrngin def filters [] md2
+  exec $ writeHtml5String (def {writerTemplate=Just template, writerVariables=vars}) filtered

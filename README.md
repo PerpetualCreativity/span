@@ -23,9 +23,10 @@ And make sure to have `~/.cabal/bin` in your path.
     content/
     templates/
     output/
+    span.yml
 ```
 
-The **content** of the website goes in `content/`; your paths are a direct reflection of the folder structure (e.g. `/content/blog/interesting.md ` becomes `output/content/blog/interesting`).
+The **content** of the website goes in `content/`; your paths are a direct reflection of the folder structure (e.g. `/content/blog/interesting.md ` becomes `output/content/blog/interesting`). Span supports using [DocTemplate syntax](https://hackage.haskell.org/package/doctemplates-0.11/docs/Text-DocTemplates.html) within a content file; however, due to [limitations in Pandoc](https://github.com/jgm/pandoc/issues/1950), Span employs a workaround: inside content files, use `%` for DocTemplate syntax instead of `$`.
 
 **Templates** are Pandoc templates used to render your content.
 
